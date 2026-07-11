@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>WP素材上传工具</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/element-plus"></script>
+  <style>
+    .container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .log-box { height: 340px; overflow-y: auto; white-space: pre-wrap; font-size:13px; }
+  </style>
+</head>
+<body>
+<div id="app" class="container">
+  <el-card header="WordPress后台登录配置" style="margin-bottom:16px">
+    <el-form label-width="130px">
+      <el-form-item label="网站地址">
+        <el-input v-model="wpForm.url" placeholder="http://xxx.com/wordpress"></el-input>
+      </el-form-item>
+      <el-form-item label="管理员账号">
+        <el-input v-model="wpForm.username"></el-input>
+      </el-form-item>
+      <el-form-item label="登录密码">
+        <el-input v-model="wpForm.password" show-password></el-input>
+      </el-form-item>
+      <el-button type="primary" @click="login" :loading="loginLoading">登录后台获取Nonce</el-button>
+    </el-form>
+  </el-card>
+
+  <el-card header="素材目录设置" style="margin-bottom:16px">
+    <div style="display:flex;gap:10px;align-items:center;">
+      <el-input v-model="rootDir" placeholder="本地素材根目录（包含news、product文件夹）" readonly></el-input>
+      <el-button @click="selectDir">填写文件夹路径</el-button>
+    </div>
+    <div style="margin-top:12px;">
+      <el-button type="success" @click="startUpload" :disabled="!authReady||!rootDir" :loading="taskLoading">开始批量上传</el-button>
+    </div>
+  </el-card>
+
+  <el-row gutter="16">
+    <el-col span="12">
+      <el-card header="上传进度">
+        <el-progress :percentage="progressPercent" text-inside></el-progress>
+        <div style="margin-top:8px;">当前处理：{{ progressName || '等待任务' }}</div>
+      </el-card>
+    </el-col>
+    <el-col span="12">
+      <el-card header="运行日志">
+        <div class="log-box">
+          <div v-for="(item,i) in logList" :key="i">{{item}}</div>
+        </div>
+      </el-card>
+    </el-col>
+  </el-row>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+createApp({
+  setup() {
+    const wpForm = ref({
+      url: localStorage.getItem('wp_url') || '',
+      username: localStorage.getItem('wp_user') || '',
+      password: localStorage.getItem('wp_pwd') || ''
+    });
+    const rootDir = ref('');
+    const authReady = ref(false);
+    const loginLoading = ref(false);
+    const taskLoading = ref(false);
+    const progressPercent = ref(0);
+    const progressName = ref('');
+    const logList = ref([]);
+
+    let ws = null;
+    onMounted(() => {
+      ws = new WebSocket(`ws://127.0.0.1:3000`);
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'log') logList.value.push(data.data);
+        if (data.type === 'progress') {
+          const { current, total, name } = data.data;
+          progressName.value = name;
+          progressPercent.value = Math.floor(current / total * 100);
+        }
+      };
+    });
+
+    const selectDir = () => {
+      ElementPlus.ElMessage.info('复制本地素材文件夹完整路径粘贴到输入框');
+    };
+
+    const login = async () => {
+      loginLoading.value = true;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wpForm.value)
+      }).then(r => r.json());
+      loginLoading.value = false;
+      if (res.success) {
+        authReady.value = true;
+        localStorage.setItem('wp_url', wpForm.value.url);
+        localStorage.setItem('wp_user', wpForm.value.username);
+        localStorage.setItem('wp_pwd', wpForm.value.password);
+        ElementPlus.ElMessage.success('登录校验完成，信息已本地缓存');
+      } else {
+        ElementPlus.ElMessage.error(res.msg);
+      }
+    };
+
+    const startUpload = async () => {
+      taskLoading.value = true;
+      await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dir: rootDir.value })
+      });
+      taskLoading.value = false;
+    };
+
+    return {
+      wpForm, rootDir, authReady, loginLoading, taskLoading,
+      progressPercent, progressName, logList,
+      selectDir, login, startUpload
+    };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>
