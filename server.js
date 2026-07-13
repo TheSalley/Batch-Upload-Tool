@@ -2,7 +2,10 @@ import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import open from 'open';
+import os from 'os';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import fs from 'fs-extra';
 import mammoth from 'mammoth';
@@ -13,10 +16,12 @@ const __dirname = path.dirname(__filename);
 
 // 导入业务模块（必须带 .js）
 import cfg from './node-wp/config.js';
-import { initAuth, getBaseHeaders } from './node-wp/wp-auth.js';
+import { initAuth } from './node-wp/wp-auth.js';
 import { uploadMedia } from './node-wp/upload-media.js';
 import { createNewsPost } from './node-wp/create-post.js';
 import { createWcProduct } from './node-wp/create-wc-product.js';
+
+const execFileAsync = promisify(execFile);
 
 const app = express();
 const server = http.createServer(app);
@@ -63,6 +68,53 @@ async function scanDir(dirPath) {
   return { docx, images };
 }
 
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getProductImagesForDoc(images, baseName) {
+  const normalizedBaseName = baseName.toLowerCase();
+  const exactOrIndexedPattern = new RegExp(
+    `^${escapeRegExp(normalizedBaseName)}(?:[-_\\s]\\d+)?$`
+  );
+
+  return images.filter((img) => {
+    const imageBaseName = path.basename(img, path.extname(img)).toLowerCase();
+    return exactOrIndexedPattern.test(imageBaseName);
+  });
+}
+
+async function selectDirectory() {
+  if (os.platform() === 'win32') {
+    const script = [
+      'Add-Type -AssemblyName System.Windows.Forms',
+      '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
+      '$dialog.Description = "选择素材根目录"',
+      '$dialog.UseDescriptionForTitle = $true',
+      'if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
+      '  [Console]::Out.Write($dialog.SelectedPath)',
+      '}'
+    ].join('; ');
+    const { stdout } = await execFileAsync('powershell', [
+      '-NoProfile',
+      '-STA',
+      '-Command',
+      script
+    ]);
+    return stdout.trim();
+  }
+
+  if (os.platform() === 'darwin') {
+    const { stdout } = await execFileAsync('osascript', [
+      '-e',
+      'POSIX path of (choose folder with prompt "选择素材根目录")'
+    ]);
+    return stdout.trim().replace(/[\\/]$/, '');
+  }
+
+  throw new Error('当前系统暂不支持目录选择器，请手动输入目录路径');
+}
+
 // 1. WP登录接口
 app.post('/api/login', async (req, res) => {
   try {
@@ -85,6 +137,18 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/scanDir', async (req, res) => {
   const list = await scanDir(req.body.dir);
   res.json(list);
+});
+
+app.post('/api/selectDir', async (_req, res) => {
+  try {
+    const selectedPath = await selectDirectory();
+    if (!selectedPath) {
+      return res.json({ success: false, cancelled: true });
+    }
+    res.json({ success: true, dir: path.normalize(selectedPath) });
+  } catch (err) {
+    res.json({ success: false, msg: err.message });
+  }
 });
 
 // 3. 批量上传任务
@@ -132,9 +196,14 @@ app.post('/api/upload', async (req, res) => {
           }
           await createNewsPost(baseName, htmlContent, coverId);
         } else if (mode === 'wc_product') {
-          pushLog(`上传当前产品全部图库图片`);
+          const matchedImages = getProductImagesForDoc(images, baseName);
+          if (matchedImages.length > 0) {
+            pushLog(`上传当前产品匹配图片：${matchedImages.map(img => path.basename(img)).join(', ')}`);
+          } else {
+            pushLog('当前产品未找到匹配图片，将仅创建商品内容');
+          }
           const mediaIds = [];
-          for (const img of images) {
+          for (const img of matchedImages) {
             const mid = await uploadMedia(img);
             mediaIds.push(mid);
           }

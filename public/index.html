@@ -2,130 +2,594 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>WP素材上传工具</title>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-  <script src="https://unpkg.com/element-plus"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WordPress 素材上传工具</title>
   <style>
-    .container { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .log-box { height: 340px; overflow-y: auto; white-space: pre-wrap; font-size:13px; }
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffaf2;
+      --panel-strong: #fff;
+      --border: #d8cbb4;
+      --text: #2b241d;
+      --muted: #6f6256;
+      --primary: #9f4a2b;
+      --primary-hover: #833a20;
+      --success: #2e7d5b;
+      --shadow: 0 20px 40px rgba(94, 70, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(159, 74, 43, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8f3ea 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 40px;
+    }
+
+    .hero {
+      margin-bottom: 24px;
+      padding: 28px 30px;
+      border: 1px solid rgba(159, 74, 43, 0.18);
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(159, 74, 43, 0.08), rgba(255, 250, 242, 0.95)),
+        var(--panel-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 20px;
+    }
+
+    .panel {
+      background: rgba(255, 250, 242, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-body {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .field input:focus {
+      border-color: rgba(159, 74, 43, 0.8);
+      box-shadow: 0 0 0 4px rgba(159, 74, 43, 0.12);
+    }
+
+    .dir-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(159, 74, 43, 0.1);
+      color: var(--primary);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .status {
+      min-height: 22px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status.info {
+      color: var(--muted);
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .status.error {
+      color: #b5372f;
+    }
+
+    .content-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .progress-card,
+    .log-card {
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(216, 203, 180, 0.95);
+      border-radius: 22px;
+      padding: 20px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    .progress-header h2,
+    .log-card h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .progress-name {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 18px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(159, 74, 43, 0.12);
+    }
+
+    .progress-fill {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+      min-width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #c45b34, #8f4124);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: width 0.25s ease;
+    }
+
+    .progress-fill span {
+      padding-right: 8px;
+    }
+
+    .log-card {
+      min-height: 420px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+    }
+
+    .log-box {
+      overflow: auto;
+      border-radius: 16px;
+      padding: 14px;
+      background: #2f241e;
+      color: #f6eee3;
+      font: 13px/1.6 Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
+    }
+
+    .log-box:empty::before {
+      content: "等待任务日志...";
+      color: rgba(246, 238, 227, 0.55);
+    }
+
+    .log-line + .log-line {
+      margin-top: 8px;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 24px 22px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        padding: 20px 14px 28px;
+      }
+
+      .dir-row {
+        grid-template-columns: 1fr;
+      }
+
+      .progress-header {
+        flex-direction: column;
+        align-items: start;
+      }
+
+      .progress-name {
+        text-align: left;
+      }
+    }
   </style>
 </head>
 <body>
-<div id="app" class="container">
-  <el-card header="WordPress后台登录配置" style="margin-bottom:16px">
-    <el-form label-width="130px">
-      <el-form-item label="网站地址">
-        <el-input v-model="wpForm.url" placeholder="http://xxx.com/wordpress"></el-input>
-      </el-form-item>
-      <el-form-item label="管理员账号">
-        <el-input v-model="wpForm.username"></el-input>
-      </el-form-item>
-      <el-form-item label="登录密码">
-        <el-input v-model="wpForm.password" show-password></el-input>
-      </el-form-item>
-      <el-button type="primary" @click="login" :loading="loginLoading">登录后台获取Nonce</el-button>
-    </el-form>
-  </el-card>
+  <main class="page">
+    <section class="hero">
+      <h1>WordPress 素材上传工具</h1>
+      <p>读取本地素材目录中的新闻和产品文档，自动上传图片、生成文章和 WooCommerce 商品，并实时显示进度与日志。</p>
+    </section>
 
-  <el-card header="素材目录设置" style="margin-bottom:16px">
-    <div style="display:flex;gap:10px;align-items:center;">
-      <el-input v-model="rootDir" placeholder="本地素材根目录（包含news、product文件夹）" readonly></el-input>
-      <el-button @click="selectDir">填写文件夹路径</el-button>
-    </div>
-    <div style="margin-top:12px;">
-      <el-button type="success" @click="startUpload" :disabled="!authReady||!rootDir" :loading="taskLoading">开始批量上传</el-button>
-    </div>
-  </el-card>
+    <section class="layout">
+      <div class="stack">
+        <article class="panel">
+          <div class="panel-body">
+            <h2>WordPress 登录配置</h2>
+            <div class="stack">
+              <div class="field">
+                <label for="wp-url">网站地址</label>
+                <input id="wp-url" type="text" placeholder="http://example.com/wordpress">
+              </div>
+              <div class="field">
+                <label for="wp-user">管理员账号</label>
+                <input id="wp-user" type="text">
+              </div>
+              <div class="field">
+                <label for="wp-password">登录密码</label>
+                <input id="wp-password" type="password">
+              </div>
+              <div class="actions">
+                <button id="login-btn" class="btn-primary" type="button">登录后台并获取 Nonce</button>
+              </div>
+              <div id="login-status" class="status info"></div>
+            </div>
+          </div>
+        </article>
 
-  <el-row gutter="16">
-    <el-col span="12">
-      <el-card header="上传进度">
-        <el-progress :percentage="progressPercent" text-inside></el-progress>
-        <div style="margin-top:8px;">当前处理：{{ progressName || '等待任务' }}</div>
-      </el-card>
-    </el-col>
-    <el-col span="12">
-      <el-card header="运行日志">
-        <div class="log-box">
-          <div v-for="(item,i) in logList" :key="i">{{item}}</div>
-        </div>
-      </el-card>
-    </el-col>
-  </el-row>
-</div>
+        <article class="panel">
+          <div class="panel-body">
+            <h2>素材目录设置</h2>
+            <div class="stack">
+              <div class="field">
+                <label for="root-dir">素材根目录</label>
+                <div class="dir-row">
+                  <input id="root-dir" type="text" placeholder="包含 news、product 文件夹">
+                  <button id="select-dir-btn" class="btn-secondary" type="button">选择文件夹</button>
+                </div>
+              </div>
+              <p class="hint">产品图片会按文档名匹配，例如 `产品A.jpg`、`产品A-1.png`、`产品A_2.webp` 都会归到同一个产品。</p>
+              <div class="actions">
+                <button id="upload-btn" class="btn-success" type="button" disabled>开始批量上传</button>
+              </div>
+              <div id="upload-status" class="status info"></div>
+            </div>
+          </div>
+        </article>
+      </div>
 
-<script>
-const { createApp, ref, onMounted } = Vue;
-createApp({
-  setup() {
-    const wpForm = ref({
-      url: localStorage.getItem('wp_url') || '',
-      username: localStorage.getItem('wp_user') || '',
-      password: localStorage.getItem('wp_pwd') || ''
-    });
-    const rootDir = ref('');
-    const authReady = ref(false);
-    const loginLoading = ref(false);
-    const taskLoading = ref(false);
-    const progressPercent = ref(0);
-    const progressName = ref('');
-    const logList = ref([]);
+      <div class="content-grid">
+        <article class="progress-card">
+          <div class="progress-header">
+            <h2>上传进度</h2>
+            <div id="progress-name" class="progress-name">等待任务</div>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill" style="width: 0%;">
+              <span id="progress-text">0%</span>
+            </div>
+          </div>
+        </article>
 
-    let ws = null;
-    onMounted(() => {
-      ws = new WebSocket(`ws://127.0.0.1:3000`);
-      ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.type === 'log') logList.value.push(data.data);
+        <article class="log-card">
+          <h2>运行日志</h2>
+          <div id="log-box" class="log-box"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const storageKeys = {
+      url: 'wp_url',
+      user: 'wp_user',
+      password: 'wp_pwd',
+      rootDir: 'root_dir'
+    };
+
+    const state = {
+      authReady: false,
+      loginLoading: false,
+      dirLoading: false,
+      uploadLoading: false
+    };
+
+    const els = {
+      url: document.getElementById('wp-url'),
+      user: document.getElementById('wp-user'),
+      password: document.getElementById('wp-password'),
+      rootDir: document.getElementById('root-dir'),
+      loginBtn: document.getElementById('login-btn'),
+      selectDirBtn: document.getElementById('select-dir-btn'),
+      uploadBtn: document.getElementById('upload-btn'),
+      loginStatus: document.getElementById('login-status'),
+      uploadStatus: document.getElementById('upload-status'),
+      progressName: document.getElementById('progress-name'),
+      progressFill: document.getElementById('progress-fill'),
+      progressText: document.getElementById('progress-text'),
+      logBox: document.getElementById('log-box')
+    };
+
+    function loadCache() {
+      els.url.value = localStorage.getItem(storageKeys.url) || '';
+      els.user.value = localStorage.getItem(storageKeys.user) || '';
+      els.password.value = localStorage.getItem(storageKeys.password) || '';
+      els.rootDir.value = localStorage.getItem(storageKeys.rootDir) || '';
+    }
+
+    function setStatus(el, type, text) {
+      el.className = `status ${type}`;
+      el.textContent = text || '';
+    }
+
+    function appendLog(text) {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.textContent = text;
+      els.logBox.appendChild(line);
+      els.logBox.scrollTop = els.logBox.scrollHeight;
+    }
+
+    function setProgress(percent, name) {
+      const safePercent = Math.max(0, Math.min(100, percent));
+      els.progressFill.style.width = `${safePercent}%`;
+      els.progressText.textContent = `${safePercent}%`;
+      els.progressName.textContent = name || '等待任务';
+    }
+
+    function updateButtons() {
+      const hasRootDir = els.rootDir.value.trim().length > 0;
+      els.loginBtn.disabled = state.loginLoading;
+      els.selectDirBtn.disabled = state.dirLoading;
+      els.uploadBtn.disabled = state.uploadLoading || !state.authReady || !hasRootDir;
+
+      els.loginBtn.textContent = state.loginLoading ? '登录中...' : '登录后台并获取 Nonce';
+      els.selectDirBtn.textContent = state.dirLoading ? '选择中...' : '选择文件夹';
+      els.uploadBtn.textContent = state.uploadLoading ? '上传中...' : '开始批量上传';
+    }
+
+    async function postJson(url, payload) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload ? JSON.stringify(payload) : null
+      });
+      return response.json();
+    }
+
+    async function handleLogin() {
+      if (state.loginLoading) return;
+
+      state.loginLoading = true;
+      updateButtons();
+      setStatus(els.loginStatus, 'info', '正在校验 WordPress 登录信息...');
+
+      try {
+        const payload = {
+          url: els.url.value.trim(),
+          username: els.user.value.trim(),
+          password: els.password.value
+        };
+        const res = await postJson('/api/login', payload);
+
+        if (res.success) {
+          state.authReady = true;
+          localStorage.setItem(storageKeys.url, payload.url);
+          localStorage.setItem(storageKeys.user, payload.username);
+          localStorage.setItem(storageKeys.password, payload.password);
+          setStatus(els.loginStatus, 'success', '登录校验完成，信息已缓存到本地。');
+        } else {
+          state.authReady = false;
+          setStatus(els.loginStatus, 'error', res.msg || '登录失败。');
+        }
+      } catch (err) {
+        state.authReady = false;
+        setStatus(els.loginStatus, 'error', `登录失败：${err.message}`);
+      } finally {
+        state.loginLoading = false;
+        updateButtons();
+      }
+    }
+
+    async function handleSelectDir() {
+      if (state.dirLoading) return;
+
+      state.dirLoading = true;
+      updateButtons();
+      setStatus(els.uploadStatus, 'info', '正在打开目录选择器...');
+
+      try {
+        const res = await postJson('/api/selectDir');
+
+        if (res.success && res.dir) {
+          els.rootDir.value = res.dir;
+          localStorage.setItem(storageKeys.rootDir, res.dir);
+          setStatus(els.uploadStatus, 'success', '素材目录已更新。');
+        } else if (res.cancelled) {
+          setStatus(els.uploadStatus, 'info', '已取消选择目录。');
+        } else {
+          setStatus(els.uploadStatus, 'error', res.msg || '无法打开目录选择器，请手动输入路径。');
+        }
+      } catch (err) {
+        setStatus(els.uploadStatus, 'error', `选择目录失败：${err.message}`);
+      } finally {
+        state.dirLoading = false;
+        updateButtons();
+      }
+    }
+
+    async function handleUpload() {
+      if (state.uploadLoading) return;
+
+      const dir = els.rootDir.value.trim();
+      if (!state.authReady || !dir) {
+        updateButtons();
+        return;
+      }
+
+      state.uploadLoading = true;
+      localStorage.setItem(storageKeys.rootDir, dir);
+      updateButtons();
+      setStatus(els.uploadStatus, 'info', '上传任务已启动，请留意右侧日志。');
+
+      try {
+        const res = await postJson('/api/upload', { dir });
+        if (res.success) {
+          setStatus(els.uploadStatus, 'success', '上传任务执行完成。');
+        } else {
+          setStatus(els.uploadStatus, 'error', res.msg || '上传任务启动失败。');
+        }
+      } catch (err) {
+        setStatus(els.uploadStatus, 'error', `上传失败：${err.message}`);
+      } finally {
+        state.uploadLoading = false;
+        updateButtons();
+      }
+    }
+
+    function bindEvents() {
+      els.loginBtn.addEventListener('click', handleLogin);
+      els.selectDirBtn.addEventListener('click', handleSelectDir);
+      els.uploadBtn.addEventListener('click', handleUpload);
+      els.rootDir.addEventListener('input', () => {
+        localStorage.setItem(storageKeys.rootDir, els.rootDir.value.trim());
+        updateButtons();
+      });
+    }
+
+    function connectWebSocket() {
+      const ws = new WebSocket('ws://127.0.0.1:3000');
+
+      ws.addEventListener('message', (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'log') {
+          appendLog(data.data);
+        }
         if (data.type === 'progress') {
           const { current, total, name } = data.data;
-          progressName.value = name;
-          progressPercent.value = Math.floor(current / total * 100);
+          const percent = total > 0 ? Math.floor((current / total) * 100) : 0;
+          setProgress(percent, name);
         }
-      };
-    });
-
-    const selectDir = () => {
-      ElementPlus.ElMessage.info('复制本地素材文件夹完整路径粘贴到输入框');
-    };
-
-    const login = async () => {
-      loginLoading.value = true;
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(wpForm.value)
-      }).then(r => r.json());
-      loginLoading.value = false;
-      if (res.success) {
-        authReady.value = true;
-        localStorage.setItem('wp_url', wpForm.value.url);
-        localStorage.setItem('wp_user', wpForm.value.username);
-        localStorage.setItem('wp_pwd', wpForm.value.password);
-        ElementPlus.ElMessage.success('登录校验完成，信息已本地缓存');
-      } else {
-        ElementPlus.ElMessage.error(res.msg);
-      }
-    };
-
-    const startUpload = async () => {
-      taskLoading.value = true;
-      await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dir: rootDir.value })
       });
-      taskLoading.value = false;
-    };
 
-    return {
-      wpForm, rootDir, authReady, loginLoading, taskLoading,
-      progressPercent, progressName, logList,
-      selectDir, login, startUpload
-    };
-  }
-}).use(ElementPlus).mount('#app');
-</script>
+      ws.addEventListener('open', () => {
+        appendLog('可视化面板已连接。');
+      });
+
+      ws.addEventListener('close', () => {
+        appendLog('连接已断开，正在尝试重连...');
+        window.setTimeout(connectWebSocket, 1500);
+      });
+    }
+
+    loadCache();
+    bindEvents();
+    updateButtons();
+    setProgress(0, '');
+    connectWebSocket();
+  </script>
 </body>
 </html>
